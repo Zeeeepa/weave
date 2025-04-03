@@ -191,7 +191,7 @@ MOCK_APPLY_GUARDRAIL_INTERVENTION_RESPONSE = {
 orig = botocore.client.BaseClient._make_api_call
 
 
-def mock_converse_make_api_call(self, operation_name, kwarg):
+def mock_converse_make_api_call(self, operation_name: str, api_params: dict) -> dict:
     if operation_name == "Converse":
         return MOCK_CONVERSE_RESPONSE
     elif operation_name == "ConverseStream":
@@ -201,25 +201,27 @@ def mock_converse_make_api_call(self, operation_name, kwarg):
                 yield from MOCK_STREAM_EVENTS
 
         return {"stream": MockStream()}
-    return orig(self, operation_name, kwarg)
+    return orig(self, operation_name, api_params)
 
 
-def mock_invoke_make_api_call(self, operation_name, kwarg):
+def mock_invoke_make_api_call(self, operation_name: str, api_params: dict) -> dict:
     if operation_name == "InvokeModel":
         return MOCK_INVOKE_RESPONSE
-    return orig(self, operation_name, kwarg)
+    return orig(self, operation_name, api_params)
 
 
-def mock_apply_guardrail_make_api_call(self, operation_name, kwarg):
+def mock_apply_guardrail_make_api_call(
+    self, operation_name: str, api_params: dict
+) -> dict:
     if operation_name == "ApplyGuardrail":
         # Check if we should return the intervention response based on the content
-        content = kwarg.get("content", [])
+        content = api_params.get("content", [])
         if content and isinstance(content, list) and len(content) > 0:
             text_content = content[0].get("text", {}).get("text", "")
             if "specific investment" in text_content.lower():
                 return MOCK_APPLY_GUARDRAIL_INTERVENTION_RESPONSE
         return MOCK_APPLY_GUARDRAIL_RESPONSE
-    return orig(self, operation_name, kwarg)
+    return orig(self, operation_name, api_params)
 
 
 @pytest.mark.skip_clickhouse_client
@@ -303,7 +305,7 @@ def test_bedrock_converse_stream(client: weave.trace.weave_client.WeaveClient) -
         assert final_response is not None
 
     # Now verify that a trace was captured.
-    calls = list(client.calls())
+    calls = client.calls()
     assert len(calls) == 1, "Expected exactly one trace call for the stream test"
     call = calls[0]
 
@@ -383,17 +385,11 @@ def test_bedrock_invoke(client: weave.trace.weave_client.WeaveClient) -> None:
 def test_bedrock_apply_guardrail(client: weave.trace.weave_client.WeaveClient) -> None:
     from weave.scorers.bedrock_guardrails import BedrockGuardrailScorer
 
-    # Initialize the scorer
-    guardrail_id = "test-guardrail-id"
-    guardrail_version = "DRAFT"
-    source = "OUTPUT"
-    bedrock_kwargs = {"region_name": "us-east-1"}
-
     scorer = BedrockGuardrailScorer(
-        guardrail_id=guardrail_id,
-        guardrail_version=guardrail_version,
-        source=source,
-        bedrock_runtime_kwargs=bedrock_kwargs,
+        guardrail_id="test-guardrail-id",
+        guardrail_version="DRAFT",
+        source="OUTPUT",
+        bedrock_runtime_kwargs={"region_name": "us-east-1"},
     )
 
     # Test with content that should pass the guardrail
