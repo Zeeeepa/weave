@@ -109,7 +109,7 @@ def test_format_content_different_source():
         source="INPUT",  # Using INPUT instead of OUTPUT
         bedrock_runtime_kwargs={"region_name": "us-east-1"},
     )
-    
+
     output = "Test content"
     formatted = scorer.format_content(output)
     assert formatted["source"] == "INPUT"
@@ -126,11 +126,11 @@ def test_client_parameters(mock_bedrock_client):
     )
     scorer._bedrock_runtime = mock_bedrock_client
     mock_bedrock_client.apply_guardrail.return_value = MOCK_APPLY_GUARDRAIL_RESPONSE
-    
+
     scorer.score("Test content")
     call_args = mock_bedrock_client.apply_guardrail.call_args[1]
     assert call_args["guardrailIdentifier"] == "custom-guardrail-id"
-    
+
     # Test with different guardrail_version
     scorer = BedrockGuardrailScorer(
         guardrail_id="test-guardrail-id",
@@ -140,11 +140,11 @@ def test_client_parameters(mock_bedrock_client):
     )
     scorer._bedrock_runtime = mock_bedrock_client
     mock_bedrock_client.apply_guardrail.return_value = MOCK_APPLY_GUARDRAIL_RESPONSE
-    
+
     scorer.score("Test content")
     call_args = mock_bedrock_client.apply_guardrail.call_args[1]
     assert call_args["guardrailVersion"] == "2"
-    
+
     # Test with different source
     scorer = BedrockGuardrailScorer(
         guardrail_id="test-guardrail-id",
@@ -154,7 +154,7 @@ def test_client_parameters(mock_bedrock_client):
     )
     scorer._bedrock_runtime = mock_bedrock_client
     mock_bedrock_client.apply_guardrail.return_value = MOCK_APPLY_GUARDRAIL_RESPONSE
-    
+
     scorer.score("Test content")
     call_args = mock_bedrock_client.apply_guardrail.call_args[1]
     assert call_args["source"] == "INPUT"
@@ -164,9 +164,9 @@ def test_error_handling(scorer, mock_bedrock_client):
     """Test error handling in the score method."""
     # Mock raises an exception
     mock_bedrock_client.apply_guardrail.side_effect = Exception("Test error")
-    
+
     result = scorer.score("Test content")
-    
+
     # Verify the result is properly formatted for error case
     assert result.passed is False
     assert "reason" in result.metadata
@@ -183,13 +183,13 @@ def test_uninitialized_client():
         source="OUTPUT",
         bedrock_runtime_kwargs={"region_name": "us-east-1"},
     )
-    
+
     # Set the client to None to simulate uninitialized client
     scorer._bedrock_runtime = None
-    
+
     with pytest.raises(ValueError) as excinfo:
         scorer.score("Test content")
-    
+
     assert "Bedrock runtime client is not initialized" in str(excinfo.value)
 
 
@@ -203,7 +203,7 @@ def test_missing_boto3():
                 source="OUTPUT",
                 bedrock_runtime_kwargs={"region_name": "us-east-1"},
             )
-        
+
         assert "boto3 is not installed" in str(excinfo.value)
 
 
@@ -211,13 +211,13 @@ def test_client_initialization_error():
     """Test handling of client initialization errors."""
     with patch("boto3.client") as mock_boto3_client:
         mock_boto3_client.side_effect = Exception("Failed to initialize client")
-        
+
         with pytest.raises(Exception) as excinfo:
             BedrockGuardrailScorer(
                 guardrail_id="test-guardrail-id",
                 guardrail_version="DRAFT",
-                source="OUTPUT", 
+                source="OUTPUT",
                 bedrock_runtime_kwargs={"region_name": "us-east-1"},
             )
-        
+
         assert "Failed to initialize Bedrock runtime client" in str(excinfo.value)

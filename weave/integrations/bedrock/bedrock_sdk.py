@@ -209,4 +209,6 @@ def patch_client(bedrock_client: "BaseClient") -> None:
         _patch_apply_guardrail(bedrock_client)
         _patch_converse_stream(bedrock_client)
     else:
-        raise ValueError(f"Unsupported client type: {bedrock_client.__class__.__name__}")
+        raise ValueError(
+            f"Unsupported client type: {bedrock_client.__class__.__name__}"
+        )
