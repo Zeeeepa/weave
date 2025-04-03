@@ -209,69 +209,33 @@ def _patch_converse_stream(bedrock_client: "BaseClient") -> None:
 def postprocess_output_invoke_agent(outputs: dict[str, Any]) -> dict[str, Any]:
     return outputs
 
-def bedrock_agent_stream_accumulator(
-    acc: Optional[dict],
-    value: dict,
-) -> dict:
-    """Accumulates streaming events from invoke_agent into a final response dictionary."""
-    if acc is None:
-        acc = {
-            "completion": "",
-        }
-
-    # Handle chunk events from the completion stream
-    if "chunk" in value:
-        chunk = value["chunk"]
-        if "bytes" in chunk:
-            try:
-                text = chunk["bytes"].decode("utf-8")
-                acc["completion"] += text
-            except (UnicodeDecodeError, AttributeError):
-                # Handle case where bytes might not be decodable
-                pass
-
-    return acc
-
 def postprocess_inputs_invoke_agent(inputs: dict[str, Any]) -> dict[str, Any]:
     return inputs.get("kwargs", {})
 
+def bedrock_on_finish_invoke_agent(
+    call: Call, output: Any, exception: Optional[BaseException]
+) -> None:
+    """Handler for capturing agent invoke results."""
+    print("="*100)
+    print("bedrock_on_finish_invoke_agent")
+    print(f"call: {call}")
+    print(f"output: {output}")
+    print(f"exception: {exception}")
+    print("="*100)
 
-def create_agent_stream_wrapper(
-    name: str,
-) -> Callable[[Callable], Callable]:
-    def wrapper(fn: Callable) -> Callable:
-        op = weave.op(postprocess_inputs=postprocess_inputs_invoke_agent)(fn)
-        op.name = name  # type: ignore
-        class AgentIteratorWrapper(_IteratorWrapper):
-            def get(self, key: str, default: Any = None) -> Any:
-                """Delegate 'get' method to the response object."""
-                if key == "completion":
-                    if hasattr(self._iterator_or_ctx_manager, "get"):
-                        self._iterator_or_ctx_manager = (
-                            # the completion payload is here
-                            self._iterator_or_ctx_manager.get("completion") 
-                        )
-                    return self
-                
-            def __str__(self) -> str:
-                return str(self._iterator_or_ctx_manager)
-
-        # Add accumulator to handle streaming
-        return _add_accumulator(
-            op,
-            make_accumulator=lambda _: bedrock_agent_stream_accumulator,
-            should_accumulate=lambda _: True,
-            iterator_wrapper=AgentIteratorWrapper,
-        )
-    
-    return wrapper
 
 def _patch_invoke_agent(bedrock_client: "BaseClient") -> None:
-    op = create_agent_stream_wrapper("AgentsforBedrockRuntime.invoke_agent")(
-        bedrock_client.invoke_agent
+    op = weave.op(
+        bedrock_client.invoke_agent,
+        name="AgentsforBedrockRuntime.invoke_agent",
+        postprocess_inputs=postprocess_inputs_invoke_agent,
+        postprocess_output=postprocess_output_invoke_agent
     )
+    op._set_on_finish_handler(bedrock_on_finish_invoke_agent)
     bedrock_client.invoke_agent = op
 
+
+## Patch the clients
 
 def patch_client(bedrock_client: "BaseClient") -> None:
     if bedrock_client.__class__.__name__ == "BedrockRuntime":
