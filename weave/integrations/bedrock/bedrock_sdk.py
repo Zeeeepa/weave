@@ -202,48 +202,11 @@ def _patch_converse_stream(bedrock_client: "BaseClient") -> None:
     bedrock_client.converse_stream = op
 
 
-########
-# Agent
-########
-
-def postprocess_output_invoke_agent(outputs: dict[str, Any]) -> dict[str, Any]:
-    return outputs
-
-def postprocess_inputs_invoke_agent(inputs: dict[str, Any]) -> dict[str, Any]:
-    return inputs.get("kwargs", {})
-
-def bedrock_on_finish_invoke_agent(
-    call: Call, output: Any, exception: Optional[BaseException]
-) -> None:
-    """Handler for capturing agent invoke results."""
-    print("="*100)
-    print("bedrock_on_finish_invoke_agent")
-    print(f"call: {call}")
-    print(f"output: {output}")
-    print(f"exception: {exception}")
-    print("="*100)
-
-
-def _patch_invoke_agent(bedrock_client: "BaseClient") -> None:
-    op = weave.op(
-        bedrock_client.invoke_agent,
-        name="AgentsforBedrockRuntime.invoke_agent",
-        postprocess_inputs=postprocess_inputs_invoke_agent,
-        postprocess_output=postprocess_output_invoke_agent
-    )
-    op._set_on_finish_handler(bedrock_on_finish_invoke_agent)
-    bedrock_client.invoke_agent = op
-
-
-## Patch the clients
-
 def patch_client(bedrock_client: "BaseClient") -> None:
     if bedrock_client.__class__.__name__ == "BedrockRuntime":
         _patch_converse(bedrock_client)
         _patch_invoke(bedrock_client)
         _patch_apply_guardrail(bedrock_client)
         _patch_converse_stream(bedrock_client)
-    elif bedrock_client.__class__.__name__ == "AgentsforBedrockRuntime":
-        _patch_invoke_agent(bedrock_client)
     else:
         raise ValueError(f"Unsupported client type: {bedrock_client.__class__.__name__}")
