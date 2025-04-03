@@ -257,7 +257,7 @@ def create_agent_stream_wrapper(
                 return str(self._iterator_or_ctx_manager)
 
         # Add accumulator to handle streaming
-        return add_accumulator(
+        return _add_accumulator(
             op,
             make_accumulator=lambda _: bedrock_agent_stream_accumulator,
             should_accumulate=lambda _: True,
