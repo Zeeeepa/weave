@@ -63,6 +63,7 @@ export const useCallsForQuery = (
   refetch: () => void;
   storageSizeLoading: boolean;
   storageSizeResults: Map<string, number> | null;
+  error?: Error | null;
 } => {
   const {useCalls, useCallsStats} = useWFHooks();
   const effectiveOffset = gridPage?.page * gridPage?.pageSize;
@@ -154,6 +155,10 @@ export const useCallsForQuery = (
     }
   );
 
+  const error = useMemo(() => {
+    return calls.error || costs.error || storageSize.error || null;
+  }, [calls.error, costs.error, storageSize.error]);
+
   const storageSizeResults = useMemo(() => {
     if (storageSize.loading) {
       return null;
@@ -201,6 +206,7 @@ export const useCallsForQuery = (
         : callResults,
       total,
       refetch,
+      error,
     };
   }, [
     callResults,
@@ -211,6 +217,7 @@ export const useCallsForQuery = (
     refetch,
     storageSize.loading,
     storageSizeResults,
+    error,
   ]);
 };
 
